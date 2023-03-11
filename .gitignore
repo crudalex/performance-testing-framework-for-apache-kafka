@@ -3,3 +3,4 @@ __pycache__
 cdk/cdk.context.json
 .DS_Store
 .vscode
+.env
