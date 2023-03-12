@@ -72,7 +72,7 @@ new CdkStack(app, 't3small-perf-test-', {
   ...defaults,
   vpc: vpc,
   clusterProps: {
-    numberOfBrokerNodes: 9,
+    numberOfBrokerNodes: 3,
     instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.SMALL),
     ebsStorageInfo: {
       volumeSize: 5334
