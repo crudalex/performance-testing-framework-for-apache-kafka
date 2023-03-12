@@ -50,6 +50,8 @@ I did not go into details of resource creation and performance testing as my ori
 
 The key metric to observe would be the aggregated throughput from the producer and consumer. I would argue latency, specifically p99 latency, is of secondary concern as we are serving an analytical workload, not transactional. Finally, monitoring the consumption of the burst tokens, such as BurstBalance, CPUCreditBalance, and TrafficShaping, may be used as an early indicator of increased traffic and an evidence to justify a pre-emptive scale-out. 
 
+Finally, I assume unencrypted data-in-transit and did not look into the CPU overhead introduced by TLS. Enabling TLS will likely introduce a performance hit as the efficient zero copy will no longer works and data transfer will buffer in userspace memory, which might potentially lead to more queuing but concrete impact is not determined. According to [1], upgrading in node instance type can bring p99 latency back to acceptable level but there is a cost implication. 
+
 # Reference
 1. [Best practices for right-sizing your Apache Kafka clusters to optimize performance and cost
 ](https://aws.amazon.com/blogs/big-data/best-practices-for-right-sizing-your-apache-kafka-clusters-to-optimize-performance-and-cost/)
