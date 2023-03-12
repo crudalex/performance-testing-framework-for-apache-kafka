@@ -1,16 +1,66 @@
-# Cluster Throughput Target
+# Targeted Cluster Throughput 
 | MB/s (1 kb msg)                                | 488.28 |
 | ---------------------------------------------- | ------ |
 | MB/s Provisioned for AZ failure (MB/s \* 1.33) | 650.88 |
 
 
+# Recommended Sizing (Plan 13)
+| Sizing Parameters                                       | Value            |
+| --------------------------------------------------------| -----------------|
+| instance type                                           | kafka.m5.2xlarge |
+| #brokers                                                | 9                |
+| replication factor                                      | 3                |
+| #consumer groups                                        | 4                |
+| instance usd/monthly                                    | 832              |
+| tEC2network                                             | 640              |
+| max(tEC2network)                                        | 512              |
+| max(tEC2network) \* #brokers/(#consumer groups + r-1)   | 768              |
+| tstorage                                                | 288              |
+| max(tstorage)                                           | 230              |
+| IO Bound?                                               | 1                |
+| provisioning throughput                                 | 0                |
+| provisioned throughput usd/monthly                      |                - |
+| max(tstorage) \* #brokers/r                             | 690              |
+| max(tcluster)                                           | 690              |
+| cluster usd/monthly                                     | 7,484            |
 
-# Cluster Sizing
+# Assumptions
+* average message size of 1KB, sustained throughput = 500k / 1024 = 488.28 MB/s
+* Not considering non-ebs-optimized instances. They are not cost efficient. 
+* Consumer groups of 4, as there are 4 topics
+* Provisioned for a single az faillure in a 3 az in a region. ap-east-1a/b/c
+* Burst performance not considered. 
+* Replication factor of 3, best practise of Kafka. 
+* Latency not a concern, as the cluster serves analytical workload
+* Not considering serverless msk
+* T3 instance not considered, due to limitation with provisioned throughput. 
+* No auto scaling, assuming a 24x7 constant workload. 
+
+# Conclusion
+The recommended setup (refer to plan 13 in the appendix) provide sustained throughput of 690 MB/s at the monthly cost of 7,484 USD. 
+
+The ultimate goal of any Kafka setup is to turn a pool of virtual machines into packet pushers, where storage and network throughput are maximized and compute utilization minimized. Therefore, it is crucial to ensure the disk and network throughput are at the same level and that the level matches the cluster throughput objective. As sizing plans 1-13 (except 11) are all storage throughput bound, theoretically, we may achieve a low-cost cluster by using provisioned storage throughput so that 1. storage throughput matches network throughput, and 2. given network throughput alone fulfills the cluster throughput objective. 
+
+However, as provisioned throughput requires an instance type of Kafka.m5.4xlarge or above, a cluster with that instance type is no longer storage throughput, but network bound. So there is no longer a need to match storage throughput with network throughput. Any further scale-out would require increasing cluster nodes. However, should lower-cost instances support provisioned storage throughput, we could use low-cost instances, such as Kafka.t3.small, along with a provisioned throughput to achieve a low-cost cluster. An example is to take plan 3 with a provisioned throughput of 613 MB/s to achieve a cluster throughput of 768 MB/s and a monthly cost of $996. 
+
+I should have gone into details of resource creation and performance testing as my original intention was to borrow the work of [2]. I was unfamiliar with CDK and had to give up due to time constraints. However, a similar setup can be created with [4] and conduct performance testing based on [5]. The key metric to observe would be the aggregated throughput performance from the producer and consumer sides. Latency, specifically p99 latency, maybe for transactional workload, but I will argue that they are secondary in this analytical use case. Finally, monitoring the consumption of the burst tokens, such as BurstBalance, CPUCreditBalance, and TrafficShaping, may be used as an early indication of increased traffic and justify a pre-emptive scale-out. 
+
+# Reference
+1. [Best practices for right-sizing your Apache Kafka clusters to optimize performance and cost
+](https://aws.amazon.com/blogs/big-data/best-practices-for-right-sizing-your-apache-kafka-clusters-to-optimize-performance-and-cost/)
+2. [aws-samples/performance-testing-framework-for-apache-kafka](https://github.com/aws-samples/performance-testing-framework-for-apache-kafka)
+3. [t3small-perf-test-27-t3small-5334-f-280](https://ap-east-1.console.aws.amazon.com/cloudformation/home?region=ap-east-1#/stacks/stackinfo?filteringText=&filteringStatus=active&viewNested=true&stackId=arn%3Aaws%3Acloudformation%3Aap-east-1%3A341249726843%3Astack%2Ft3small-perf-test-27-t3small-5334-f-280%2F3007c780-c07b-11ed-8a8b-0eee8c07edc8)
+4. https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/msk_cluster
+5. https://github.com/crudalex/performance-testing-framework-for-apache-kafka/blob/main/cdk/docker/run-kafka-command.sh
+
+# Appendix
+
+## Cluster Sizing Calculation
 | id  | instance type     | #brokers | r   | #consumer groups | instance usd/monthly | tEC2network | max(tEC2network) | max(tEC2network) \* #brokers/(#consumer groups + r-1) | tstorage | max(tstorage) | IO Bound? | provisioning throughput | provisioned throughput usd/monthly | max(tstorage) \* #brokers/r | max(tcluster) | cluster usd/monthly |
 | --- | ----------------- | -------- | --- | ---------------- | -------------------- | ----------- | ---------------- | ----------------------------------------------------- | -------- | ------------- | --------- | ----------------------- | ---------------------------------- | --------------------------- | ------------- | ------------------- |
 | 1   | kafka.t3.small    | 3        | 3   | 4                | 46                   | 640         | 512              | 256                                                   | 22       | 17            | 1         | 613                     | 65                                 | 630                         | 256           | 332                 |
 | 2   | kafka.t3.small    | 6        | 3   | 4                | 46                   | 640         | 512              | 512                                                   | 22       | 17            | 1         | 613                     | 65                                 | 1260                        | 512           | 664                 |
-| 3   | kafka.t3.small    | 9        | 3   | 4                | 46                   | 640         | 512              | 768                                                   | 22       | 17            | 1         | 613                     | 65                                 | 1891                        | 768           | 996                 |
+| **3**   | kafka.t3.small    | 9        | 3   | 4                | 46                   | 640         | 512              | 768                                                   | 22       | 17            | 1         | 613                     | 65                                 | 1891                        | 768           | 996                 |
 | 4   | kafka.m5.large    | 3        | 3   | 4                | 208                  | 640         | 512              | 256                                                   | 81       | 65            | 1         | 538                     | 57                                 | 603                         | 256           | 795                 |
 | 5   | kafka.m5.xlarge   | 3        | 3   | 4                | 416                  | 640         | 512              | 256                                                   | 144      | 115           | 1         | 460                     | 49                                 | 575                         | 256           | 1,394               |
 | 6   | kafka.m5.large    | 6        | 3   | 4                | 208                  | 640         | 512              | 512                                                   | 81       | 65            | 1         | 538                     | 57                                 | 1207                        | 512           | 1,590               |
@@ -37,7 +87,7 @@
 | 27  | kafka.m5.24xlarge | 9        | 3   | 4                | 9,979                | 3200        | 2560             | 3840                                                  | 80000    | 64000         | 0         | 0                       | -                                  | 192000                      | 3840          | 89,813              |
 
 
-# EC2 Instance Type Capacity
+## EC2 Capacity Specifications
 | Broker            | Broker2     | vCPU | Memory | Price  | tEBSnetwork MB/s | tEC2network Gb/s | tEC2network MB/s |
 | ----------------- | ----------- | ---- | ------ | ------ | ---------------- | ---------------- | ---------------- |
 | kafka.t3.small    | t3.small    | 2    | 2      | 0.0639 | 21.75            | 5                | 640              |
