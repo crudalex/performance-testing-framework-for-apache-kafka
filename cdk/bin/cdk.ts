@@ -37,12 +37,7 @@ const throughputSpec = (consumer: number, protocol: string, batchSize: number, p
     "parameters": {
       "cluster_throughput_mb_per_sec": throughput,
       "num_producers": [9],
-      "consumer_groups": [
-        { "num_groups": 0, "size": 9 },
-        { "num_groups": 1, "size": 9 },
-        { "num_groups": 2, "size": 9 },
-        { "num_groups": 4, "size": 9 }
-      ],
+      "consumer_groups": [{ "num_groups": 4, "size": 9 },],
       "client_props": [{
         "producer": `acks=all linger.ms=5 batch.size=${batchSize} buffer.memory=2147483648 security.protocol=${protocol}`,
         "consumer": `security.protocol=${protocol}`
@@ -50,7 +45,7 @@ const throughputSpec = (consumer: number, protocol: string, batchSize: number, p
       "num_partitions": partitions,
       "record_size_byte": [1024],
       "replication_factor": [3],
-      "duration_sec": [3600]
+      "duration_sec": [900] // # 15 mins
     },
     "skip_remaining_throughput": {
       "less-than": ["sent_div_requested_mb_per_sec", 0.995]
@@ -65,14 +60,15 @@ const throughputSpec = (consumer: number, protocol: string, batchSize: number, p
 });
 
 
-const throughput056 = [8, 16, 24, 32, 40, 44, 48, 52, 56];
-const througphut096 = [8, 16, 32, 48, 56, 64, 72, 80, 88, 96];
-const throughput192 = [8, 16, 32, 64, 96, 112, 128, 144, 160, 176, 192];
-const throughput200 = [8, 16, 32, 64, 96, 112, 128, 144, 160, 176, 192, 200];
-const throughput384 = [8, 64, 128, 192, 256, 320, 336, 352, 368, 384]
-const throughput672 = [8, 128, 256, 384, 448, 512, 576, 608, 640, 672];
+// const throughput056 = [8, 16, 24, 32, 40, 44, 48, 52, 56];
+// const througphut096 = [8, 16, 32, 48, 56, 64, 72, 80, 88, 96];
+// const throughput192 = [8, 16, 32, 64, 96, 112, 128, 144, 160, 176, 192];
+// const throughput200 = [8, 16, 32, 64, 96, 112, 128, 144, 160, 176, 192, 200];
+// const throughput384 = [8, 64, 128, 192, 256, 320, 336, 352, 368, 384]
+// const throughput672 = [8, 128, 256, 384, 448, 512, 576, 608, 640, 672];
+const throughput700 = [500, 550, 600, 650, 700];
 
-new CdkStack(app, 't3small-perf-test--', {
+new CdkStack(app, 't3small-perf-test-', {
   ...defaults,
   vpc: vpc,
   clusterProps: {
@@ -87,5 +83,5 @@ new CdkStack(app, 't3small-perf-test--', {
     },
     kafkaVersion: KafkaVersion.V2_8_0,
   },
-  initialPerformanceTest: throughputSpec(2, "PLAINTEXT", 262114, [36], throughput672)
+  initialPerformanceTest: throughputSpec(2, "PLAINTEXT", 262114, [36], throughput700)
 })
